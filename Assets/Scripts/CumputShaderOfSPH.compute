@@ -1,0 +1,125 @@
+#pragma kernel CumputeDensityPressure
+#pragma kernel ComputeForces
+#pragma kernel Integrate
+
+
+struct SPHParticle
+{
+    float3 position;
+    float3 velocity;
+    float3 force;
+    float density;
+    float pressure;
+};
+
+
+shared RWStructuredBuffer<SPHParticle> particles;
+
+
+int particleCount;
+
+float smoothingRadius;
+float smoothingRadiusSq;
+float kStiffness;
+float restDensity;
+float mass;
+float radius;
+float particleViscosity;
+float DAMPING_COEFFICIENT;
+float deltaTime;
+float4 gravity;
+
+
+float3 penetrationNormal;
+float penetrationLength;
+float3 penetrationPosition;
+
+#define PI 3.1415926536
+#define PARTICLETHREADCOUNT 128
+
+
+//kernal Function
+float poly6KernalFun(float rP2){
+    return (315.0f / (64.0f * PI * pow(smoothingRadius , 9.0f))) * pow( smoothingRadiusSq - rP2 , 3.0f);
+}
+
+float pressureKernalFun(float r){
+    return (-45.0f / (PI * pow(smoothingRadius, 6.0f))) * pow(smoothingRadius - r, 2.0f);
+}
+
+float viscosityKernalFun(float r){
+    return (45.0f / (PI * pow(smoothingRadius, 6.0f))) * (smoothingRadius - r);
+}
+
+//_________________________________________________________________________//
+
+[numthreads(PARTICLETHREADCOUNT,1,1)]
+void CumputeDensityPressure (uint3 id : SV_DispatchThreadID)
+{
+    SPHParticle particle = particles[id.x];
+	
+    particle.density = 0.0f;
+
+    for (int j = 0; j < particleCount; j++)
+    {
+        float3 relativePosition = particles[j].position - particle.position;
+        float rP2 = dot(relativePosition, relativePosition);
+
+        if (rP2 < smoothingRadiusSq)
+        {
+            particle.density += mass * poly6KernalFun(rP2);
+        }
+    }
+
+    particle.pressure = kStiffness * (particle.density - restDensity);
+
+    particles[id.x] = particle;
+}
+
+[numthreads(PARTICLETHREADCOUNT,1,1)]
+void ComputeForces (uint3 id : SV_DispatchThreadID)
+{
+    float3 forcePressure = 0;
+    float3 forceViscosity = 0;
+
+    SPHParticle particle = particles[id.x];
+
+    for (int j = 0; j < particleCount; j++)
+    {
+        if (id.x == (uint)j) continue;
+
+        SPHParticle particleJ = particles[j];
+
+        float3 relativePosition = particleJ.position - particle.position;
+        float rP2 = dot(relativePosition, relativePosition);
+        
+        if (rP2 < smoothingRadiusSq)
+        {
+            float r = length(relativePosition);
+            float3 rPN = normalize(relativePosition);
+
+            forcePressure += -rPN * mass * (particle.pressure + particleJ.pressure) / (2.0f * particleJ.density) * pressureKernalFun(r);
+            forceViscosity += particleViscosity * mass * (particleJ.velocity - particle.velocity) / particleJ.density * viscosityKernalFun(r);
+        }
+
+    }
+
+    float3 forceGravity = gravity.xyz * particle.density * gravity.w;
+
+    particle.force = forcePressure + forceViscosity + forceGravity;
+
+    particles[id.x] = particle;
+
+}
+
+[numthreads(PARTICLETHREADCOUNT,1,1)]
+void Integrate (uint3 id : SV_DispatchThreadID)
+{
+    SPHParticle particle = particles[id.x];
+
+	particle.velocity += deltaTime * particle.force / particle.density;
+    particle.position += deltaTime * particle.velocity;
+
+    particles[id.x] = particle;
+
+}
