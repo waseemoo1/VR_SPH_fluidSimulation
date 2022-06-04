@@ -115,7 +115,6 @@ public class Particals : MonoBehaviour
 
     private void Update()
     {
-
         shader.Dispatch(kernelComputeDensityPressure, groupSize, 1, 1);
         shader.Dispatch(kernelComputeForces, groupSize, 1, 1);
         shader.Dispatch(kernelIntegrate, groupSize, 1, 1);
@@ -134,6 +133,5 @@ public class Particals : MonoBehaviour
     {
         particlesBuffer.Dispose();
     }
-
 
 }

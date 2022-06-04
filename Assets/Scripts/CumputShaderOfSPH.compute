@@ -117,6 +117,31 @@ void Integrate (uint3 id : SV_DispatchThreadID)
 {
     SPHParticle particle = particles[id.x];
 
+	float LIMITS_MIN_Y = 1;
+
+	float LIMITS_MIN_Z = -10;
+	float LIMITS_MAX_Z = 10;
+
+	float LIMITS_MIN_X = -10;
+	float LIMITS_MAX_X = 10;
+
+	// keep objects inside room
+
+	if ( particle.position.y < LIMITS_MIN_Y ) {
+		particle.position.y = LIMITS_MIN_Y;
+		particle.velocity.y = particle.velocity.y * DAMPING_COEFFICIENT;
+	}
+
+	if ( particle.position.x < LIMITS_MIN_X || particle.position.x > LIMITS_MAX_X ) {
+		particle.position.x = clamp( particle.position.x, LIMITS_MIN_X, LIMITS_MAX_X );
+		particle.velocity.x = particle.velocity.x * DAMPING_COEFFICIENT;
+	}
+
+	if ( particle.position.z < LIMITS_MIN_Z || particle.position.z > LIMITS_MAX_Z ) {
+		particle.position.z = clamp( particle.position.z, LIMITS_MIN_Z, LIMITS_MAX_Z );
+		particle.velocity.z = particle.velocity.z * DAMPING_COEFFICIENT;
+	}
+
 	particle.velocity += deltaTime * particle.force / particle.density;
     particle.position += deltaTime * particle.velocity;
 

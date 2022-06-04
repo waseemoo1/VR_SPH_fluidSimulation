@@ -470,15 +470,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 80ac6c24ed894d84d820a4fe9cbcc828, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleCount: 8000
-  h: 2
-  restDensity: 15
-  kStiffness: 0.1
-  viscosity: 1
-  radius: 2
-  mass: 0.1
+  particleCount: 10000
+  h: 0.457
+  restDensity: 100
+  kStiffness: 3
+  viscosity: 3.5
+  radius: 0.5
+  mass: 0.02
   rowSize: 20
-  DAMPING_COEFFICIENT: -0.5
+  DAMPING_COEFFICIENT: -0.1
   mesh: {fileID: 4038423270530239950, guid: 1b8d3340cfbe7fb46a21390aaaaca7cf, type: 3}
   material: {fileID: 2100000, guid: e3ec2e9b2f12951468f0a55b3d587be4, type: 2}
   shader: {fileID: 7200000, guid: a9bf98e771ede7149a736bf44515cb1a, type: 3}
