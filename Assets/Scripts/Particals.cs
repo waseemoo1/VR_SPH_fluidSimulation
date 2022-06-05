@@ -52,6 +52,31 @@ public class Particals : MonoBehaviour
     }
     int SIZE_SPHPARTICLE = 11 * sizeof(float);
 
+    private struct Obstacle
+    {
+        public Vector3 position;
+        public Vector3 right;
+        public Vector3 up;
+        public Vector2 scale;
+
+        public Obstacle(Transform _transform)
+        {
+            position = _transform.position;
+            right = _transform.right;
+            up = _transform.up;
+            scale = new Vector2(_transform.lossyScale.x / 2f, _transform.lossyScale.y / 2f);
+        }
+    }
+    int SIZE_SPHCOLLIDER = 11 * sizeof(float);
+
+    public float particleDrag = 0.025f;
+    private const float BOUND_DAMPING = -0.5f;
+
+    Obstacle[] collidersArray;
+    ComputeBuffer collidersBuffer;
+    int kernelComputeColliders;
+
+
 
     // Start is called before the first frame update
     void Start()
@@ -89,36 +114,48 @@ public class Particals : MonoBehaviour
     {
         kernelComputeForces = shader.FindKernel("ComputeForces");
         kernelIntegrate = shader.FindKernel("Integrate");
+        kernelComputeColliders = shader.FindKernel("ComputeColliders");
 
         float hSq = h * h;
 
         particlesBuffer = new ComputeBuffer(particlesArray.Length, SIZE_SPHPARTICLE);
         particlesBuffer.SetData(particlesArray);
 
+        UpdateColliders();
+
         shader.SetInt("particleCount", particlesArray.Length);
+        shader.SetInt("colliderCount", collidersArray.Length);
         shader.SetFloat("smoothingRadius", h);
         shader.SetFloat("smoothingRadiusSq", hSq);
         shader.SetFloat("kStiffness", kStiffness);
         shader.SetFloat("restDensity", restDensity);
-        shader.SetFloat("radius", radius);
         shader.SetFloat("mass", mass);
         shader.SetFloat("particleViscosity", viscosity);
         shader.SetFloat("deltaTime", deltaTime);
         shader.SetVector("gravity", gravity);
         shader.SetFloat("DAMPING_COEFFICIENT", DAMPING_COEFFICIENT);
+        shader.SetFloat("damping", BOUND_DAMPING);
+        shader.SetFloat("particleDrag", particleDrag);
+        shader.SetFloat("radius", radius);
+
 
         shader.SetBuffer(kernelComputeDensityPressure, "particles", particlesBuffer);
         shader.SetBuffer(kernelComputeForces, "particles", particlesBuffer);
         shader.SetBuffer(kernelIntegrate, "particles", particlesBuffer);
-      
+        shader.SetBuffer(kernelComputeColliders, "particles", particlesBuffer);
+        shader.SetBuffer(kernelComputeColliders, "colliders", collidersBuffer);
+
+
     }
 
     private void Update()
     {
+        
         shader.Dispatch(kernelComputeDensityPressure, groupSize, 1, 1);
         shader.Dispatch(kernelComputeForces, groupSize, 1, 1);
         shader.Dispatch(kernelIntegrate, groupSize, 1, 1);
-
+        shader.Dispatch(kernelComputeColliders, groupSize, 1, 1);
+        
         particlesBuffer.GetData(particlesArray);
 
         foreach (Particle particle in particlesArray)
@@ -132,6 +169,30 @@ public class Particals : MonoBehaviour
     private void OnDestroy()
     {
         particlesBuffer.Dispose();
+        collidersBuffer.Dispose();
+    }
+
+    void UpdateColliders()
+    {
+        // Get colliders
+        GameObject[] collidersGO = GameObject.FindGameObjectsWithTag("Obstacle");
+        if (collidersArray == null || collidersArray.Length != collidersGO.Length)
+        {
+            collidersArray = new Obstacle[collidersGO.Length];
+            if (collidersBuffer != null)
+            {
+                collidersBuffer.Dispose();
+            }
+            collidersBuffer = new ComputeBuffer(collidersArray.Length, SIZE_SPHCOLLIDER);
+        }
+        for (int i = 0; i < collidersArray.Length; i++)
+        {
+            collidersArray[i] = new Obstacle(collidersGO[i].transform);
+        }
+        collidersBuffer.SetData(collidersArray);
+        shader.SetBuffer(kernelComputeColliders, "colliders", collidersBuffer);
     }
 
 }
+
+
