@@ -2571,7 +2571,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   showParticle: 1
-  particleCount: 200000
+  particleCount: 100000
   h: 1
   restDensity: 15
   kStiffness: 1000
@@ -2579,7 +2579,7 @@ MonoBehaviour:
   radius: 1
   mass: 0.1
   rowSize: 90
-  DAMPING_COEFFICIENT: -1
+  DAMPING_COEFFICIENT: -0.1
   mesh: {fileID: 4038423270530239950, guid: 1b8d3340cfbe7fb46a21390aaaaca7cf, type: 3}
   material: {fileID: 2100000, guid: e3ec2e9b2f12951468f0a55b3d587be4, type: 2}
   m_volumeMat: {fileID: 2100000, guid: 2152cea34bf3e7e4c991b0b8669fe9d7, type: 2}
@@ -3934,7 +3934,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2042601454}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.000015258789, z: 103.10001}
+  m_LocalPosition: {x: 0, y: -0.000015258789, z: 98}
   m_LocalScale: {x: 300, y: 100, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
