@@ -1,11 +1,14 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.SceneManagement;
 
 public class Particals : MonoBehaviour
 {
     public bool showParticle = true;
-    //public bool showVolume = true; 
+    public bool showVolume = true; 
+    private bool lastShowVolume = true;
+    public bool tsunamiForce = false;
     private float ParticleVolume;
     public int particleCount;
     public float h = 1f;
@@ -15,6 +18,8 @@ public class Particals : MonoBehaviour
     public float radius = 1;
     public float mass = 1;
     public int rowSize = 100;
+    bool once_temp = true;
+    public GameObject tsunami;
 
     [Range(-1,0)]
     public float DAMPING_COEFFICIENT = -0.5f;
@@ -48,6 +53,7 @@ public class Particals : MonoBehaviour
     int kernelComputeForces;
     int kernelIntegrate;
     int kernalComputeVolume;
+    int kernalTsunamiForce;
 
     private static Vector4 gravity = new Vector4(0.0f, -9.81f, 0.0f, 2000.0f);
     private const float deltaTime = 0.0008f;
@@ -108,7 +114,6 @@ public class Particals : MonoBehaviour
     int SIZE_SPHCOLLIDER = 11 * sizeof(float);
 
     public float particleDrag = 0.025f;
-    private const float BOUND_DAMPING = -0.5f;
 
     Obstacle[] collidersArray;
     ComputeBuffer collidersBuffer;
@@ -117,6 +122,7 @@ public class Particals : MonoBehaviour
 
     void Start()
     {
+        read_Values();
         InitSPH();
         InitGrid();
         InitShader();
@@ -229,12 +235,11 @@ public class Particals : MonoBehaviour
         for (int i = 0; i < amount; i++)
         {
             Vector3 pos = new Vector3();
-            pos.x = (i % rowSize) + UnityEngine.Random.Range(-0.1f, 0.1f) - center;
-            pos.y = 2 + (float)((i / rowSize) / rowSize) * 1.1f;
-            pos.z = ((i / rowSize) % rowSize) + UnityEngine.Random.Range(-0.1f, 0.1f) - center;
+            pos.x = (i % rowSize) - center;
+            pos.y = 2 + (float)((i / rowSize) / rowSize); ;
+            pos.z = ( (i / rowSize) % rowSize) - center;
             pos += this.transform.position;
             pos *= radius;
-
 
             particlesArray[i] = new Particle(pos);
         }
@@ -246,6 +251,7 @@ public class Particals : MonoBehaviour
         kernelComputeForces = shader.FindKernel("ComputeForces");
         kernelIntegrate = shader.FindKernel("Integrate");
         kernelComputeColliders = shader.FindKernel("ComputeColliders");
+        kernalTsunamiForce = shader.FindKernel("AddTsunamiForce");
 
         float hSq = h * h;
 
@@ -268,7 +274,6 @@ public class Particals : MonoBehaviour
         shader.SetFloat("deltaTime", deltaTime);
         shader.SetVector("gravity", gravity);
         shader.SetFloat("DAMPING_COEFFICIENT", DAMPING_COEFFICIENT);
-        shader.SetFloat("damping", BOUND_DAMPING);
         shader.SetFloat("particleDrag", particleDrag);
         shader.SetFloat("radius", radius);
 
@@ -287,7 +292,8 @@ public class Particals : MonoBehaviour
         shader.SetBuffer(kernelIntegrate, "particles", particlesBuffer);
         shader.SetBuffer(kernelComputeColliders, "particles", particlesBuffer);
         shader.SetBuffer(kernelComputeColliders, "colliders", collidersBuffer);
- 
+
+        shader.SetBuffer(kernalTsunamiForce , "particles", particlesBuffer);
     }
 
 
@@ -305,9 +311,51 @@ public class Particals : MonoBehaviour
 
         shader.Dispatch(kernelComputeDensityPressure, groupSize, 1, 1);
         shader.Dispatch(kernelComputeForces, groupSize, 1, 1);
+        if (tsunamiForce)
+        {
+            shader.Dispatch(kernalTsunamiForce, groupSize, 1, 1);
+        }
+       
         shader.Dispatch(kernelIntegrate, groupSize, 1, 1);
         shader.Dispatch(kernelComputeColliders, groupSize, 1, 1);
-        shader.Dispatch(kernalComputeVolume, RenderTextureGroups.x, RenderTextureGroups.y, RenderTextureGroups.z);
+
+       
+
+        if (Input.GetKey(KeyCode.Backspace))
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex - 1);
+
+
+        if (Input.GetKey(KeyCode.T))
+        {
+            tsunamiForce = true;
+        }
+        if (Input.GetKey(KeyCode.R))
+        {
+            tsunamiForce = false;
+        }
+        if (Input.GetKey(KeyCode.Z))
+            showParticle = !showParticle;
+        if (Input.GetKey(KeyCode.X))
+            showVolume = !showVolume;
+
+            if (lastShowVolume && showVolume)
+        {
+            shader.Dispatch(kernalComputeVolume, RenderTextureGroups.x, RenderTextureGroups.y, RenderTextureGroups.z);
+        }
+
+        if (!lastShowVolume && showVolume)
+        {
+            Volume.Create();
+            shader.Dispatch(kernalComputeVolume, RenderTextureGroups.x, RenderTextureGroups.y, RenderTextureGroups.z);
+        }
+
+        if (lastShowVolume && !showVolume)
+        {
+            Volume.Release();  
+        }
+
+        lastShowVolume = showVolume;
+       
 
         if (showParticle)
         {
@@ -368,6 +416,19 @@ public class Particals : MonoBehaviour
         material.SetTexture("Volume", Volume);
         material.SetVector("Size", bounds.size);
 
+    }
+    void read_Values()
+    {
+        particleCount = PlayerPrefs.GetInt("particla_count");
+        h = PlayerPrefs.GetFloat("H");
+        restDensity = PlayerPrefs.GetFloat("restDensity");
+        kStiffness = PlayerPrefs.GetFloat("siffness");
+        viscosity = PlayerPrefs.GetFloat("viscosity");
+        radius = PlayerPrefs.GetFloat("radius");
+        mass = PlayerPrefs.GetFloat("mass");
+        //rowSize = PlayerPrefs.GetInt("row_size");
+        DAMPING_COEFFICIENT = PlayerPrefs.GetFloat("DAMPING_COEFFICIENT");
+        particleDrag = PlayerPrefs.GetFloat("particle_Drag");
     }
 
 }

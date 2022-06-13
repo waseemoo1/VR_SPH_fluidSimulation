@@ -5,7 +5,7 @@
 #pragma kernel Integrate
 #pragma kernel ComputeColliders
 #pragma kernel ComputeVolume
-
+#pragma kernel AddTsunamiForce
 
 struct SPHParticle
 {
@@ -46,7 +46,6 @@ float kStiffness;
 float restDensity;
 float mass;
 float particleDrag;
-float damping;
 float radius;
 float particleViscosity;
 float DAMPING_COEFFICIENT;
@@ -78,7 +77,7 @@ bool Intersect(SPHCollider collider, float3 position){
 
 float3 DampVelocity(SPHCollider collider, float3 velocity, float drag)
 {
-    float3 newVelocity = dot(velocity, penetrationNormal) * penetrationNormal * damping
+    float3 newVelocity = dot(velocity, penetrationNormal) * penetrationNormal * DAMPING_COEFFICIENT
                     + dot(velocity, collider.right) * collider.right * drag
                     + dot(velocity, collider.up) * collider.up * drag;
 
@@ -136,7 +135,7 @@ float viscosityKernalFun(float r) {
 void PopulateGrid(uint3 id : SV_DispatchThreadID)
 {
     int index = GetParticleGridIndex(id.x);
-    // clamp gridIndex
+    
     if (index < gridDimensions.w && index >= 0) {
         int pId = id.x;
         int originalValue = 0;
@@ -299,7 +298,6 @@ void ComputeForces (uint3 id : SV_DispatchThreadID)
     particles[id.x] = particle;
     
 }
-
 [numthreads(PARTICLETHREADCOUNT,1,1)]
 void Integrate (uint3 id : SV_DispatchThreadID)
 {
@@ -385,3 +383,14 @@ void ComputeVolume(int3 id : SV_DispatchThreadID)
 	}
 }
 
+[numthreads(PARTICLETHREADCOUNT , 1 , 1)]
+void AddTsunamiForce(int3 id : SV_DispatchThreadID){
+	SPHParticle particle = particles[id.x];
+
+	if(particle.position.z < -35){
+		particle.force.z += 20000;
+		particle.force.y += 1000;
+	}
+
+	particles[id.x] = particle;
+}
